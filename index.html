@@ -29,7 +29,6 @@
             border-radius: 20px; z-index: 2; font-size: 13px; text-align: center;
             border: 1px solid #333; pointer-events: none;
         }
-        /* Панель переключения режимов и выбора локальных файлов */
         #control-panel {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(20, 20, 20, 0.9); border: 1px solid #444;
@@ -89,20 +88,16 @@
     </a-scene>
 
     <script>
-        const MODEL_URL = "./model/"; 
+        // Теперь путь указывает на корень проекта (туда же, где лежит index.html)
+        const MODEL_URL = "./"; 
         
-        // Массивы путей, учитывающие особенности названий ваших файлов:
-        // 1. У Вашингтона george3 и george6 с маленькой буквы, а 15-й файл с пробелом "George 15.jpg"
+        // Массивы твоих картинок
         const georgeImages = [
             "./George1.jpg", "./George2.jpg", "./george3.jpg", "./George4.jpg", "./George5.jpg",
             "./george6.jpg", "./George7.jpg", "./George8.jpg", "./George9.jpg", "./George10.jpg",
             "./George11.jpg", "./George12.jpg", "./George13.jpg", "./George14.jpg", "./George 15.jpg"
         ];
-
-        // 2. У Линкольна в названии буква 'k' вместо 'c' (Linkoln)
         const lincolnImages = Array.from({length: 15}, (_, i) => `./Linkoln${i + 1}.jpg`);
-
-        // 3. У Франклина стандартный патент имен
         const franklinImages = Array.from({length: 15}, (_, i) => `./Franklin${i + 1}.jpg`);
 
         let model, maxPredictions;
@@ -116,19 +111,15 @@
         const confidenceText = document.getElementById('confidence-score');
         const cardBg = document.getElementById('card-bg');
 
-        // Карта соответствия классов из Teachable Machine и цветов карточек
-        // ВНИМАНИЕ: Строки ниже должны СТРОГО совпадать с названиями классов, которые вы ввели на сайте TM!
         const classConfig = {
             "George Washington": { name: "Джордж Вашингтон", color: "#2b5797" },
             "Abraham Lincoln": { name: "Авраам Линкольн", color: "#b91d47" },
             "Franklin Roosevelt": { name: "Франклин Рузвельт", color: "#00a300" },
-            // На всякий случай дублируем, если в TM вы назвали классы как файлы:
             "george": { name: "Джордж Вашингтон", color: "#2b5797" },
             "Linkoln": { name: "Авраам Линкольн", color: "#b91d47" },
             "Franklin": { name: "Франклин Рузвельт", color: "#00a300" }
         };
 
-        // Генерация списка номеров картинок (1-15) в селекторе
         const selectIndex = document.getElementById('select-index');
         for(let i=1; i<=15; i++) {
             let opt = document.createElement('option');
@@ -138,7 +129,6 @@
         }
 
         async function init() {
-            // Инициализация камеры
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
                 webcamElement.srcObject = stream;
@@ -147,14 +137,14 @@
                 setMode('gallery');
             }
 
-            // Загрузка модели Teachable Machine
             try {
+                // Загрузка файлов напрямую из корня
                 model = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
                 maxPredictions = model.getTotalClasses();
                 statusOverlay.innerText = "Нейросеть загружена. Выберите режим тестирования.";
                 window.requestAnimationFrame(loop);
             } catch (err) {
-                statusOverlay.innerText = "Ошибка: Положите файлы модели в папку 'model'";
+                statusOverlay.innerText = "Ошибка: Файлы модели не найдены в корневой папке!";
                 console.error(err);
             }
         }
@@ -194,11 +184,7 @@
 
         async function predict() {
             if (!model) return;
-
-            // Выбираем текущий активный элемент для анализа (видео или картинку)
             const inputSource = isWebcamMode ? webcamElement : testImageElement;
-            
-            // Защита от дебага: если картинка еще не прогрузилась в DOM, пропускаем кадр
             if (!isWebcamMode && (!testImageElement.complete || testImageElement.naturalWidth === 0)) return;
 
             const prediction = await model.predict(inputSource);
@@ -210,21 +196,16 @@
                 }
             }
 
-            // Если уверенность сети > 82% и это не фоновый класс
             if (topPrediction.probability > 0.82 && topPrediction.className !== "Background") {
                 arContainer.setAttribute('visible', 'true');
-                
-                // Ищем красивое имя и цвет в нашей конфигурации
                 const config = classConfig[topPrediction.className];
                 if (config) {
                     presidentNameText.setAttribute('value', config.name);
                     cardBg.setAttribute('color', config.color);
                 } else {
-                    // Если имя класса сырое из TM
                     presidentNameText.setAttribute('value', topPrediction.className.toUpperCase());
                     cardBg.setAttribute('color', '#222');
                 }
-                
                 const score = Math.round(topPrediction.probability * 100);
                 confidenceText.setAttribute('value', `Уверенность: ${score}%`);
             } else {
